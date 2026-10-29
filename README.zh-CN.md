@@ -20,7 +20,7 @@
 ## 快速开始
 
 > **最简单的安装方式 —— Windows，无需命令行。** 从最新的
-> [release](https://github.com/davuses/kokoro-read-aloud/releases) 下载：
+> [release](https://github.com/davuses/pagevoice/releases) 下载：
 >
 > 1. 运行 **`kokoro-tts-server-setup.exe`**。它会自动完成全部安装配置（首次运行需
 >    下载几百 MB，耗时数分钟），随后以**系统托盘图标**的方式在后台运行服务器，也
@@ -72,7 +72,7 @@ npm run build:chrome     # 或 build:firefox
 
 ## 从 kokoro-read-aloud 升级
 
-PageVoice 是新的显示名称，仓库地址和发布文件名暂时保持兼容。使用 Pocket 需要同时
+项目已更名为 PageVoice，仓库地址为 [davuses/pagevoice](https://github.com/davuses/pagevoice)，发布文件名保持不变。使用 Pocket 需要同时
 更新服务器与扩展。现有语音、服务器地址和播放设置会保留。Windows 安装目录、
 安装器 AppId、GPU 偏好和日志位置不变；升级后首次启动会更新依赖。
 安装前请退出旧的托盘服务器，安装后重新启动，使新代码生效。

@@ -15,7 +15,7 @@ its own.
 
 Windows users can install the server like a normal app: download
 `kokoro-tts-server-setup.exe` from the
-[Releases](https://github.com/davuses/kokoro-read-aloud/releases) page and run
+[Releases](https://github.com/davuses/pagevoice/releases) page and run
 it. The installer copies the server, sets up the `uv` toolchain and
 dependencies (a few minutes, one time), adds Start Menu / optional desktop
 shortcuts, and can **start automatically when you sign in**. It runs the server

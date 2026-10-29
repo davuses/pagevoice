@@ -22,7 +22,7 @@ engine does not.
 ## Quickstart
 
 > **Easiest install — Windows, no command line.** From the latest
-> [release](https://github.com/davuses/kokoro-read-aloud/releases):
+> [release](https://github.com/davuses/pagevoice/releases):
 >
 > 1. Run **`kokoro-tts-server-setup.exe`**. It sets everything up (first run
 >    downloads a few hundred MB, several minutes) and then runs the server from a
@@ -56,7 +56,7 @@ Mary, and Michael; synthesis-speed adjustment is Kokoro-only.
 **2. Build and load the extension** (see [`extension/README.md`](extension/README.md)):
 
 Don't want to build? Download a prebuilt zip from the
-[Releases](https://github.com/davuses/kokoro-read-aloud/releases) page, unzip it,
+[Releases](https://github.com/davuses/pagevoice/releases) page, unzip it,
 and load the folder (skip the commands below).
 
 ```bash
@@ -84,8 +84,8 @@ have their own upstream licenses; see the [voice catalog](https://huggingface.co
 
 ## Upgrading from kokoro-read-aloud
 
-PageVoice is the new display name. The repository URL and release asset names
-remain unchanged for compatibility. v3.0 requires updating both the server and
+PageVoice is the new project name, hosted at [davuses/pagevoice](https://github.com/davuses/pagevoice).
+Release asset names remain unchanged for compatibility. v3.0 requires updating both the server and
 extension to use Pocket. Quit the old tray server before installing and restart
 it afterward. Existing Kokoro voices, server URL, speed, look-ahead,
 and auto-scroll settings are retained. Windows keeps the same installer AppId,

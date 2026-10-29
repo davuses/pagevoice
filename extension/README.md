@@ -47,7 +47,7 @@ npm run build:firefox    # -> dist-firefox/
 This extension is not on any store yet, so it installs as an unpacked build.
 
 **No build needed:** grab a prebuilt zip from the
-[Releases](https://github.com/davuses/kokoro-read-aloud/releases) page
+[Releases](https://github.com/davuses/pagevoice/releases) page
 (`kokoro-extension-chrome.zip` / `kokoro-extension-firefox.zip`), unzip it, and
 load the unzipped folder using the steps below. The zips are produced
 automatically for each tagged release — you only need the build commands if you
