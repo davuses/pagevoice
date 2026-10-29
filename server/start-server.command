@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kokoro TTS server — easy start (macOS).
+# PageVoice Server — easy start (macOS).
 #
 # Double-click this file in Finder to start the server. The first run installs
 # the "uv" toolchain and downloads the speech model (a few hundred MB), so it
@@ -15,7 +15,7 @@ pause_on_exit() {
   read -r -p "Press Enter to close this window..."
 }
 
-echo "Starting Kokoro TTS server setup..."
+echo "Starting PageVoice Server setup..."
 echo
 
 # Make sure uv (the Python toolchain manager) is available. It manages its own

@@ -13,6 +13,8 @@ wheels/
 *.ipynb
 model_config.json
 *.txt
+!dependency-version.txt
 audio_output
 *.mp3
 *.wav
+.environment-ready

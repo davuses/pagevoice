@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TTS Settings</title>
+    <title>PageVoice Settings</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <div class="popup-container">
-      <h1 class="popup-title">Select TTS Engine</h1>
+      <h1 class="popup-title">PageVoice</h1>
       <div class="tts-option">
         <label for="tts-select" class="option-label"
           >Choose a TTS Service</label
@@ -17,12 +17,18 @@
              endpoint (with a hardcoded fallback if the server is offline). -->
         <select id="tts-select" class="option-select">
           <option value="google-translate" selected>Google Translate</option>
+          <option value="kokoro">Kokoro (local)</option>
+          <option value="pocket">Pocket TTS (local)</option>
         </select>
         <div id="server-status" class="server-status" style="display: none;"></div>
       </div>
 
+      <div id="voice-row" class="tts-option" style="display: none;">
+        <label for="voice-select" class="option-label">Voice</label>
+        <select id="voice-select" class="option-select"></select>
+      </div>
       <div id="server-url-row" class="tts-option" style="display: none;">
-        <label for="server-url" class="option-label">Kokoro server URL</label>
+        <label for="server-url" class="option-label">Local speech server URL</label>
         <input
           id="server-url"
           class="option-input"

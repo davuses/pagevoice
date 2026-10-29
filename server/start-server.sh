@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Kokoro TTS server — easy start (Linux).
+# PageVoice Server — easy start (Linux).
 #
 # Run this file to start the server (double-click and choose "Run in Terminal"
 # if your file manager offers it, or run ./start-server.sh from a terminal).
@@ -16,7 +16,7 @@ pause_on_exit() {
   read -r -p "Press Enter to close this window..."
 }
 
-echo "Starting Kokoro TTS server setup..."
+echo "Starting PageVoice Server setup..."
 echo
 
 # Make sure uv (the Python toolchain manager) is available. It manages its own

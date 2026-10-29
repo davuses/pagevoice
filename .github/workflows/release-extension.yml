@@ -31,6 +31,7 @@ jobs:
       - name: Build Chrome and Firefox
         working-directory: extension
         run: |
+          npm test
           node build.js chrome
           node build.js firefox
 

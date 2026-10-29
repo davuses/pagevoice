@@ -1,7 +1,7 @@
 [project]
 name = "kokoro-server"
-version = "1.0.0"
-description = "FastAPI server exposing the Kokoro text-to-speech model over an HTTP endpoint."
+version = "3.0.0"
+description = "PageVoice local speech server for Kokoro and Pocket TTS."
 readme = "README.md"
 license = "Apache-2.0"
 authors = [{ name = "davuses" }]
@@ -10,7 +10,9 @@ dependencies = [
     "en-core-web-sm",
     "fastapi>=0.116.1",
     "kokoro>=0.9.4",
-    "numpy<2.0",
+    # Validated with Kokoro; Pocket TTS requires NumPy 2 or newer.
+    "numpy==2.2.6",
+    "pocket-tts==4.0.1",
     # Pin the torch series so adding the CUDA index / re-locking doesn't silently
     # jump to a much newer torch that kokoro may not support. The CPU build (PyPI
     # default on Windows) and the CUDA build (cu126 index) both resolve here.

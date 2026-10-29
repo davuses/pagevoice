@@ -1,8 +1,8 @@
-# kokoro-read-aloud
+# PageVoice
 
 [English](README.md) | **简体中文**
 
-使用 [Kokoro](https://github.com/hexgrad/kokoro) TTS 朗读网页 —— 一个可自托管的
+使用 [Kokoro](https://github.com/hexgrad/kokoro) 或 [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) 朗读网页 —— 一个可自托管的
 神经网络文本转语音服务器，搭配一个跨浏览器扩展，从服务器流式获取音频，并以
 卡拉 OK 式的高亮跟随朗读进度。
 
@@ -10,10 +10,10 @@
 
 | 目录 | 简介 |
 | --- | --- |
-| [`server/`](server) | 一个小巧的 FastAPI 服务器，通过 HTTP 流式输出 Kokoro 音频。支持美式英语（推荐）和英式英语语音，语速可调。 |
-| [`extension/`](extension) | 一个 Chrome（MV3）/ Firefox（MV2）扩展，可朗读页面正文、点击的元素，或从某处开始到页尾的内容 —— 既可经由服务器（Kokoro），也可使用零配置的 Google 翻译作为后备方案。 |
+| [`server/`](server) | 共享的 FastAPI 服务器，支持 Kokoro（美式/英式英语，可调语速）与 Pocket TTS（CPU 推理、英语预置语音）。 |
+| [`extension/`](extension) | 一个 Chrome（MV3）/ Firefox（MV2）扩展，可朗读页面正文、点击的元素，或从某处开始到页尾的内容 —— 既可经由服务器（Kokoro 或 Pocket TTS），也可使用零配置的 Google 翻译作为后备方案。 |
 
-扩展的 Kokoro 引擎需要服务器在运行；而它的 Google 翻译引擎则不需要。
+扩展的 Kokoro 和 Pocket TTS 引擎需要服务器在运行；Google 翻译引擎不需要。
 
 ![演示：朗读正文，卡拉 OK 式高亮跟随朗读进度。](docs/demo.gif)
 
@@ -27,7 +27,7 @@
 >    可设置为登录时自动启动。
 > 2. 解压 **`kokoro-extension-chrome.zip`**，打开 `chrome://extensions`，启用
 >    *开发者模式*，再**加载已解压的扩展程序**，选择解压后的文件夹。
-> 3. 点击扩展图标，选择一个 Kokoro 语音，使用弹出窗口中的朗读按钮即可。
+> 3. 点击扩展图标，选择 Kokoro 或 Pocket TTS 引擎和语音，使用朗读按钮即可。
 >
 > 下面的步骤适用于 macOS/Linux 以及开发者。
 
@@ -43,8 +43,9 @@ uv sync
 uv run uvicorn server:app --host 127.0.0.1 --port 18001
 ```
 
-服务器启动时会预热美式和英式两套流水线（首次会下载一次模型权重），因此第一次
-请求和后续请求一样快。有 GPU 时会使用 GPU，否则回退到 CPU。
+每个引擎在首次请求时加载并缓存模型与语音，首次使用需要联网下载权重。
+Kokoro 优先使用 GPU；Pocket 使用 CPU。两者都支持流式播放、句子高亮、自动滚动、
+跳句和 WAV 下载。Pocket 提供 12 种预设语音，暂不支持语速调整。
 
 **2. 构建并加载扩展**（详见 [`extension/README.md`](extension/README.md)）：
 
@@ -59,7 +60,7 @@ npm run build:chrome     # 或 build:firefox
 
 ## 隐私与安全速览
 
-- 用 **Kokoro** 朗读的文字只会发送到你自己运行的服务器。
+- 用 **Kokoro 或 Pocket TTS** 朗读的文字只会发送到你自己运行的服务器。
 - 用 **Google 翻译** 朗读的文字会发送到 Google 的公共 TTS 接口。详见
   [`extension/PRIVACY.md`](extension/PRIVACY.md)。
 - 服务器**没有鉴权或限流** —— 除非你打算共享它，否则请将其绑定到
@@ -67,4 +68,11 @@ npm run build:chrome     # 或 build:firefox
 
 ## 许可证
 
-[Apache-2.0](LICENSE)。Kokoro 模型同样采用 Apache-2.0 许可证。
+[Apache-2.0](LICENSE)。Kokoro 使用 Apache-2.0，Pocket TTS 使用 MIT；预置语音遵循各自的上游许可证。
+
+## 从 kokoro-read-aloud 升级
+
+PageVoice 是新的显示名称，仓库地址和发布文件名暂时保持兼容。使用 Pocket 需要同时
+更新服务器与扩展。现有语音、服务器地址和播放设置会保留。Windows 安装目录、
+安装器 AppId、GPU 偏好和日志位置不变；升级后首次启动会更新依赖。
+安装前请退出旧的托盘服务器，安装后重新启动，使新代码生效。

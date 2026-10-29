@@ -1,10 +1,10 @@
 @echo off
-REM Kokoro TTS server - easy start (Windows). Double-click to run the server in a
+REM PageVoice Server - easy start (Windows). Double-click to run the server in a
 REM visible console. (The installer's tray icon is the background alternative.)
 REM First run builds the environment and asks whether to use the CPU or GPU build.
 
 cd /d "%~dp0"
-title Kokoro TTS Server
+title PageVoice Server
 
 REM Keep uv's managed Python on a local, non-redirected path (see setup.bat).
 set "UV_PYTHON_INSTALL_DIR=%LOCALAPPDATA%\uv\python"

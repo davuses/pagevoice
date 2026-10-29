@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "TTS with Kokoro",
-  "version": "2.10.3",
-  "description": "Use Kokoro TTS",
+  "name": "PageVoice — Read Aloud",
+  "version": "3.0.0",
+  "description": "Read web pages aloud with local Kokoro or Pocket TTS, or Google Translate.",
   "background": {
     "service_worker": "background.js",
     "type": "module"

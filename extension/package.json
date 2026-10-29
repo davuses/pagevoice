@@ -1,15 +1,19 @@
 {
-  "name": "tts-with-kokoro-extension",
-  "version": "2.10.3",
-  "description": "Cross-browser extension for Kokoro TTS",
+  "name": "pagevoice-extension",
+  "version": "3.0.0",
+  "description": "Cross-browser read-aloud extension with multiple speech engines",
+  "private": true,
   "license": "Apache-2.0",
   "author": "davuses",
   "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:browser": "npm run build:chrome && node tests/browser-smoke.cjs",
     "build:chrome": "node build.js chrome",
     "build:firefox": "node build.js firefox",
     "start:firefox": "web-ext run --source-dir=dist-firefox"
   },
   "devDependencies": {
-    "deepmerge": "^4.3.1"
+    "deepmerge": "^4.3.1",
+    "playwright": "1.64.1"
   }
 }

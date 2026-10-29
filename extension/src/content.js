@@ -147,6 +147,7 @@ function adjustAudioPositions() {
 // They play through the Web Audio API (not <audio> elements), so the browser
 // won't pause them for us — without this, stacked players talk over each other.
 const activePlayers = new Set();
+let nextHighlightId = 0;
 function pauseOtherPlayers(except) {
   for (const player of activePlayers) {
     if (player !== except) player.pause();
@@ -207,7 +208,10 @@ function makePlayerButton(text, title) {
   const b = document.createElement("button");
   b.classList.add("player-btn");
   if (text != null) b.textContent = text;
-  if (title) b.title = title;
+  if (title) {
+    b.title = title;
+    b.setAttribute("aria-label", title);
+  }
   return b;
 }
 
@@ -888,6 +892,18 @@ async function createAudioPlayer(base64Audio) {
 // Plays them gaplessly with a rolling-window scheduler (only ~1s scheduled
 // ahead) so pause/seek stay simple, and starts on the first chunk (~1s) instead
 // of waiting for the whole narration.
+// currentTime is the render clock and can lead what the speakers are playing.
+// Use the device timestamp for the highlight/playhead, with a latency fallback.
+function audibleContextTime(context) {
+  const stamp = context.getOutputTimestamp?.();
+  if (stamp && stamp.performanceTime > 0 && Number.isFinite(stamp.contextTime)) {
+    const extrapolated = stamp.contextTime + Math.max(0, performance.now() - stamp.performanceTime) / 1000;
+    return Math.max(0, Math.min(context.currentTime, extrapolated));
+  }
+  const latency = (context.outputLatency || 0) + (context.baseLatency || 0);
+  return Math.max(0, context.currentTime - latency);
+}
+
 function createStreamingPlayer(port, source) {
   // Attach the message handler synchronously so no early chunks are missed.
   const pending = [];
@@ -925,7 +941,8 @@ function createStreamingPlayer(port, source) {
   let isPlaying = false;
   let finished = false;
   let startOffset = 0; // timeline position where the current run began
-  let startCtxTime = 0; // audioCtx.currentTime at run start
+  let scheduledContextEnd = 0;
+  let scheduledSpans = []; // actual context-time ↔ media-time mapping for this run
   let scheduledUntil = 0; // timeline position scheduled so far this run
   let activeSources = [];
   let pumpTimer = null;
@@ -937,6 +954,8 @@ function createStreamingPlayer(port, source) {
   let buffering = false; // ran out of audio mid-read; waiting on the next segment
   let downloadPending = false; // download clicked before generation finished
   let lastAsk = 0;
+  let activeSentence = null;
+  let streamError = null;
 
   const send = (msg) => {
     try { port.postMessage(msg); } catch (e) { /* background gone */ }
@@ -944,7 +963,17 @@ function createStreamingPlayer(port, source) {
 
   function position() {
     if (!isPlaying) return startOffset;
-    return Math.min(startOffset + (audioCtx.currentTime - startCtxTime), totalDuration);
+    const now = audibleContextTime(audioCtx);
+    // Most of the spans at the end are at most LOOKAHEAD seconds in the future.
+    // During an underrun, hold at the last played sample rather than letting
+    // a wall clock advance into the next sentence (or rewinding on recovery).
+    for (let i = scheduledSpans.length - 1; i >= 0; i--) {
+      const span = scheduledSpans[i];
+      if (now >= span.when) {
+        return Math.min(span.end, span.offset + now - span.when);
+      }
+    }
+    return startOffset;
   }
 
   function stopActiveSources() {
@@ -965,16 +994,20 @@ function createStreamingPlayer(port, source) {
   // and whenever a new chunk arrives.
   function pump() {
     if (!isPlaying) return;
-    const playhead = startOffset + (audioCtx.currentTime - startCtxTime);
     while (scheduledUntil < totalDuration &&
-           scheduledUntil - playhead < LOOKAHEAD) {
+           scheduledContextEnd - audioCtx.currentTime < LOOKAHEAD) {
       const i = chunkIndexAt(scheduledUntil);
       const intoBuffer = scheduledUntil - chunks[i].start;
-      const whenCtx = startCtxTime + (scheduledUntil - startOffset);
+      // If a timer/network callback ran late, append after the previous source
+      // in real context time. Starting every overdue chunk "now" overlaps them.
+      const whenCtx = Math.max(scheduledContextEnd, audioCtx.currentTime);
       const src = audioCtx.createBufferSource();
       src.buffer = chunks[i].buffer;
       src.connect(audioCtx.destination);
-      src.start(Math.max(whenCtx, audioCtx.currentTime), Math.max(0, intoBuffer));
+      src.start(whenCtx, Math.max(0, intoBuffer));
+      const end = chunks[i].start + chunks[i].buffer.duration;
+      scheduledSpans.push({ when: whenCtx, offset: scheduledUntil, end });
+      scheduledContextEnd = whenCtx + end - scheduledUntil;
       activeSources.push(src);
       src.onended = () => {
         const idx = activeSources.indexOf(src);
@@ -983,7 +1016,7 @@ function createStreamingPlayer(port, source) {
       scheduledUntil = chunks[i].start + chunks[i].buffer.duration;
     }
     // Reached the end of all received audio.
-    if (position() >= totalDuration - 0.02) {
+    if (position() >= totalDuration) {
       if (receivedEnd) {
         startOffset = totalDuration; // park at the end so the bar/time read 100%
         isPlaying = false;
@@ -1011,7 +1044,8 @@ function createStreamingPlayer(port, source) {
     }
     stopActiveSources();
     startOffset = Math.max(0, Math.min(fromOffset, totalDuration));
-    startCtxTime = audioCtx.currentTime;
+    scheduledContextEnd = audioCtx.currentTime;
+    scheduledSpans = [];
     scheduledUntil = startOffset;
     isPlaying = true;
     finished = false;
@@ -1065,18 +1099,20 @@ function createStreamingPlayer(port, source) {
   timeDisplay.classList.add("time-display");
   function updateTime() {
     const live = receivedEnd ? "" : " …";
-    timeDisplay.textContent =
-      `${formatTime(position())} / ${formatTime(totalDuration)}${live}`;
+    timeDisplay.textContent = streamError
+      ? `⚠ ${streamError.slice(0, 40)}`
+      : `${formatTime(position())} / ${formatTime(totalDuration)}${live}`;
     if (!progress.isDragging() && totalDuration > 0) {
       progress.setProgress(position() / totalDuration);
     }
     if (karaoke) {
       karaoke.update(
         position(),
-        autoScrollEnabled && !autoScrollSuspended,
+        autoScrollEnabled && !autoScrollSuspended && isPlaying,
         forceAutoScroll
       );
       forceAutoScroll = false;
+      if (jumpBtn) jumpBtn.disabled = !karaoke.canLocate(position());
     }
 
     if (receivedEnd) return;
@@ -1114,6 +1150,7 @@ function createStreamingPlayer(port, source) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   downloadButton.addEventListener("click", () => {
+    if (streamError) return;
     if (receivedEnd) {
       doDownload();
       return;
@@ -1130,9 +1167,13 @@ function createStreamingPlayer(port, source) {
   // generated (nextStart returns null past it).
   let prevBtn = null;
   let nextBtn = null;
+  let jumpBtn = null;
   if (karaoke) {
     prevBtn = makePlayerButton("⏮", "Previous sentence");
     nextBtn = makePlayerButton("⏭", "Next sentence");
+    jumpBtn = makePlayerButton("◎", "Jump to current sentence");
+    jumpBtn.disabled = true;
+    jumpBtn.addEventListener("click", () => karaoke.scrollTo(position()));
     prevBtn.addEventListener("click", () => play(karaoke.prevStart(position())));
     nextBtn.addEventListener("click", () => {
       const t = karaoke.nextStart(position());
@@ -1147,6 +1188,7 @@ function createStreamingPlayer(port, source) {
   if (nextBtn) audioContainer.appendChild(nextBtn);
   audioContainer.appendChild(progress.track);
   audioContainer.appendChild(timeDisplay);
+  if (jumpBtn) audioContainer.appendChild(jumpBtn);
   audioContainer.appendChild(downloadButton);
   audioContainer.appendChild(closeButton);
   document.body.appendChild(host);
@@ -1167,6 +1209,7 @@ function createStreamingPlayer(port, source) {
     chunks.push({ buffer, start: totalDuration });
     pcmParts.push(int16);
     totalDuration += buffer.duration;
+    if (karaoke && activeSentence) karaoke.extendSentence(activeSentence, totalDuration);
     if (karaoke && text) karaoke.addChunk(tStart, buffer.duration, text);
 
     // Auto-start on the first chunk if nothing else is playing on the page.
@@ -1187,14 +1230,14 @@ function createStreamingPlayer(port, source) {
   // requested while generation was still running.
   function onEnd() {
     receivedEnd = true;
-    downloadButton.disabled = false;
-    downloadButton.title = "Download audio";
+    downloadButton.disabled = !!streamError;
+    downloadButton.title = streamError ? "Generation failed; audio is incomplete" : "Download audio";
     if (buffering) {
       buffering = false;
       finished = true;
       updatePlayButton();
     }
-    if (downloadPending) {
+    if (downloadPending && !streamError) {
       downloadPending = false;
       doDownload();
     }
@@ -1208,11 +1251,16 @@ function createStreamingPlayer(port, source) {
       lookAhead = Number(msg.lookAhead) || 0;
       autoScrollEnabled = msg.autoScroll !== false;
       if (!autoScrollEnabled) autoScrollSuspended = false;
+    } else if (msg.type === "sentence_start") {
+      activeSentence = karaoke?.startSentence(totalDuration, msg.text) || null;
+    } else if (msg.type === "sentence_end") {
+      activeSentence = null;
     } else if (msg.type === "end") {
       onEnd();
     } else if (msg.type === "error") {
+      streamError = String(msg.message);
       onEnd();
-      timeDisplay.textContent = `⚠ ${String(msg.message).slice(0, 40)}`;
+      updateTime();
     }
   }
 
@@ -1221,7 +1269,13 @@ function createStreamingPlayer(port, source) {
   onPortMessage = handleMessage;
   for (const m of pending) handleMessage(m);
 
-  port.onDisconnect.addListener(() => onEnd());
+  port.onDisconnect.addListener(() => {
+    if (!receivedEnd) {
+      streamError = "Speech connection lost";
+      onEnd();
+      updateTime();
+    }
+  });
 
   // A deliberate user scroll means they want to inspect another part of the
   // page. Stop pulling the viewport back until they explicitly play, seek, or
@@ -1300,9 +1354,10 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
     return null;
   }
 
-  ensureHighlightStyle();
+  const highlightName = `tts-reading-${++nextHighlightId}`;
+  const highlightStyle = ensureHighlightStyle(highlightName);
   const highlight = new Highlight();
-  CSS.highlights.set("tts-reading", highlight);
+  CSS.highlights.set(highlightName, highlight);
 
   // Normalize a raw whitespace-delimited token to comparable letters/digits.
   const norm = (tok) => tok.toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -1365,7 +1420,7 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
   const segments = []; // { tStart, tEnd, range } ordered by time
   let currentSeg = null;
 
-  function scrollRangeIntoView(range) {
+  function scrollRangeIntoView(range, force = false) {
     if (!range.startContainer?.isConnected) return;
     const rects = Array.from(range.getClientRects()).filter(
       (rect) => rect.width > 0 && rect.height > 0
@@ -1383,7 +1438,7 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
     // whole sentence remains inside this reading area.
     const comfortableTop = viewportHeight * 0.2;
     const comfortableBottom = viewportHeight * 0.78;
-    if (first.top >= comfortableTop && last.bottom <= comfortableBottom) return;
+    if (!force && first.top >= comfortableTop && last.bottom <= comfortableBottom) return;
 
     const delta = first.top - viewportHeight * 0.35;
     if (Math.abs(delta) < 2) return;
@@ -1397,7 +1452,30 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
     });
   }
 
+  function segmentAt(pos) {
+    return segments.find((s) => pos >= s.tStart && pos < s.tEnd);
+  }
+
   return {
+    canLocate(pos) {
+      return !!segmentAt(pos)?.range?.startContainer?.isConnected;
+    },
+    scrollTo(pos) {
+      const seg = segmentAt(pos);
+      if (seg?.range) {
+        this.update(pos);
+        scrollRangeIntoView(seg.range, true);
+      }
+    },
+    startSentence(tStart, text) {
+      const words = text.split(/\s+/).map(norm).filter(Boolean);
+      const segment = { tStart, tEnd: tStart, range: rangeForWords(words) };
+      segments.push(segment);
+      return segment;
+    },
+    extendSentence(segment, tEnd) {
+      segment.tEnd = tEnd;
+    },
     addChunk(tStart, duration, text) {
       const sentences = splitSentences(text);
       const totalLen = sentences.reduce((a, s) => a + s.length, 0) || 1;
@@ -1411,13 +1489,7 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
       }
     },
     update(pos, autoScroll = false, forceScroll = false) {
-      let seg = null;
-      for (const s of segments) {
-        if (pos >= s.tStart && pos < s.tEnd) {
-          seg = s;
-          break;
-        }
-      }
+      const seg = segmentAt(pos) || null;
       const changed = seg !== currentSeg;
       if (!changed && !forceScroll) return;
       if (changed) {
@@ -1451,7 +1523,8 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
     clear() {
       highlight.clear();
       try {
-        CSS.highlights.delete("tts-reading");
+        CSS.highlights.delete(highlightName);
+        highlightStyle.remove();
       } catch (e) {
         /* ignore */
       }
@@ -1459,13 +1532,12 @@ function createKaraoke(roots, range, onAutoScroll = () => {}) {
   };
 }
 
-function ensureHighlightStyle() {
-  if (document.getElementById("tts-highlight-style")) return;
+function ensureHighlightStyle(name) {
   const s = document.createElement("style");
-  s.id = "tts-highlight-style";
   s.textContent =
-    "::highlight(tts-reading){background-color:rgba(99,102,241,0.35);color:inherit;}";
+    `::highlight(${name}){background-color:rgba(99,102,241,0.35);color:inherit;}`;
   document.head.appendChild(s);
+  return s;
 }
 
 // Build a minimal 16-bit mono WAV blob from Int16 PCM samples.

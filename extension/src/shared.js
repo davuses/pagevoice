@@ -7,12 +7,37 @@
 // (notably `api`), since concatenation puts them in the same scope.
 const api = typeof browser !== "undefined" ? browser : chrome;
 
-// Default Kokoro server. The real URL is stored in storage.sync (editable in
+// Default local server. The real URL is stored in storage.sync (editable in
 // the popup and shared with the background script); this is only the fallback.
 const DEFAULT_SERVER_URL = "http://localhost:18001";
 
 // Default playback rate; 1.0 is natural speed.
 const DEFAULT_SPEED = 1.0;
+
+// Migrate the original combined engine/voice value while retaining settings.
+async function getTTSSettings() {
+  const data = await api.storage.sync.get(null);
+  if (data.ttsEngine?.startsWith("kokoro_")) {
+    data.ttsVoice = data.ttsEngine.slice("kokoro_".length);
+    data.ttsEngine = "kokoro";
+    data.ttsVoices = { ...data.ttsVoices, kokoro: data.ttsVoice };
+    await api.storage.sync.set({
+      ttsEngine: data.ttsEngine, ttsVoice: data.ttsVoice, ttsVoices: data.ttsVoices,
+    });
+  }
+  data.ttsEngine ||= "google-translate";
+  const pocketVoice = data.ttsVoices?.pocket ||
+    (data.ttsEngine === "pocket" ? data.ttsVoice : null);
+  if (["marius", "javert"].includes(pocketVoice)) {
+    data.ttsVoices = { ...data.ttsVoices, pocket: "alba" };
+    const patch = { ttsVoices: data.ttsVoices };
+    if (data.ttsEngine === "pocket") patch.ttsVoice = data.ttsVoice = "alba";
+    await api.storage.sync.set(patch);
+  }
+  data.ttsVoice = data.ttsVoices?.[data.ttsEngine] || data.ttsVoice ||
+    (data.ttsEngine === "pocket" ? "alba" : "af_bella");
+  return data;
+}
 
 // Keep the sentence being spoken in view unless the user opts out. Manual
 // scrolling suspends following for the current player until playback is
@@ -28,10 +53,7 @@ const DEFAULT_LOOKAHEAD = 0;
 
 // Resolve the configured Kokoro server URL from storage, stripping trailing
 // slashes and falling back to DEFAULT_SERVER_URL when nothing is stored.
-function getServerUrl() {
-  return new Promise((resolve) => {
-    api.storage.sync.get("serverUrl", (data) => {
-      resolve((data.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, ""));
-    });
-  });
+async function getServerUrl() {
+  const data = await api.storage.sync.get("serverUrl");
+  return (data.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, "");
 }

@@ -1,10 +1,11 @@
-# kokoro-server
+# PageVoice Server
 
 A small [FastAPI](https://fastapi.tiangolo.com/) server that exposes the
-[Kokoro](https://github.com/hexgrad/kokoro) text-to-speech model over HTTP.
-Send it text, get audio streamed back as it is generated. Offers **American
-English** (the recommended, higher-quality voices) and **British English**
-voices, with an adjustable speech rate.
+[Kokoro](https://github.com/hexgrad/kokoro) and
+[Pocket TTS](https://github.com/kyutai-labs/pocket-tts) models over HTTP.
+Kokoro offers American/British English with adjustable synthesis speed. Pocket
+offers 12 preset voices on CPU. Both stream PCM
+and support the extension's highlighting, sentence skipping and auto-scroll.
 
 It pairs with the companion [browser extension](../extension), which streams from
 this server (default `http://localhost:18001`) — but the HTTP API is usable on
@@ -52,8 +53,17 @@ server. The steps below are the manual equivalent for developers.
 - Python >= 3.12
 - [uv](https://docs.astral.sh/uv/)
 
-The Kokoro model weights are downloaded automatically by the `kokoro` package
-on first use.
+Model weights and voice presets download automatically on first use. Internet
+access is needed for the first read with each engine/voice; subsequent reads
+use the local cache. Pocket uses `english_2026-10` with copied, cached preset
+voice states. Custom voice uploads and cloning are not exposed.
+These weights fix the training-data truncation of sentence-final numbers in
+the older `english_2026-09_2` model ([upstream diagnosis](https://github.com/kyutai-labs/pocket-tts/issues/393),
+[training fix](https://github.com/kyutai-labs/pocket-tts/pull/394)). Text is passed
+unchanged and Pocket uses its default end-of-sequence policy.
+Restart an already-running server after this change; loaded weights remain in
+memory until it exits. `/engines` reports Pocket's selected `model` so the
+running configuration can be checked.
 
 ## Setup
 
@@ -96,10 +106,10 @@ extension.
 > canonicalize script path"* error, which can occur on Windows when the project
 > sits under a folder with non-ASCII characters (e.g. a Chinese username).
 
-Both pipelines (American and British) are pre-warmed at **startup**, so startup
-takes a little longer but every request — including the first, and the first
-British one — runs at full speed. If pre-warming fails it's logged and the
-model falls back to loading lazily on first use.
+The HTTP server starts immediately. Models load lazily, so the first read with
+an engine can take longer. `/health` reports HTTP readiness and each engine's
+`loaded` state. Kokoro and Pocket share a serialized inference lock; closing a
+player cancels generation and waits for the active worker before releasing it.
 
 ## Deployment
 
@@ -137,10 +147,45 @@ behind a reverse proxy that adds auth/rate limits and set `ALLOWED_ORIGINS`.
 uv run pytest
 ```
 
-The tests mock the model, so they run without a GPU (or the Kokoro weights) in
-under a second.
+The tests mock inference, so they run without a GPU or model downloads.
+
+### Shared Kokoro / Pocket dependency check
+
+The shared environment pins NumPy 2.2.6 and Pocket TTS 4.0.1. Both engines are
+selectable in the extension; Kokoro remains the default for older API clients.
+
+To verify real inference from both libraries in the same Python process:
+
+```bash
+uv run python scripts/smoke_tts_environment.py
+```
+
+This downloads the model weights and Pocket's Alba preset on first use, checks
+American and British Kokoro voices before and after Pocket streaming, and saves
+WAV samples in a temporary directory for listening. It uses the explicit Pocket
+model configuration `english_2026-10`; use `--output-dir PATH` to choose where
+samples are written. This is an opt-in integration check, not part of pytest.
+
+For repeatable sentence-ending comparisons (including the reported year 2026),
+run `uv run python scripts/diagnose_pocket_endings.py`. It saves six seeds of
+numeric, spelled-out, and ordinary sentences with sample counts and tail energy.
+Use `--models english_2026-09_2 english_2026-10` to compare affected and retrained
+weights, or `--voices alba anna michael` to compare specific presets. Listen to the
+WAVs: a correct automatic transcript alone does not prove audible completion.
+
+With the server running, `uv run python scripts/smoke_tts_api.py` additionally
+checks real HTTP PCM from three Pocket presets, sentence boundaries, and
+cancellation of a long read followed by a Kokoro request. Use `--server URL`
+for a non-default address. It bypasses environment proxies so disconnects
+reach the local server directly.
 
 ## API
+
+### `GET /engines` and `GET /health`
+
+`/engines` returns engine IDs, names, installation/loading state, and capability
+flags (`speed`, `streaming`, `sentence_highlighting`). `/health` includes the
+same catalog plus HTTP `ready` state. Catalog requests never load models.
 
 ### `GET /voices`
 
@@ -157,6 +202,10 @@ populate a dropdown instead of hardcoding the list:
 ```
 
 Cheap to call: it does not load the model.
+
+`GET /voices?engine=pocket` lists Alba, Anna, Azelma, Bill Boerst, Charles,
+Cosette, Eponine, Eve, George, Jane, Mary, and Michael.
+Omitting `engine` preserves the original Kokoro response.
 
 ### `POST /tts/stream`
 
@@ -179,6 +228,44 @@ Available voices: American English (recommended) — `af_bella`, `af_heart`,
 `af_sarah`, `af_sky`, `am_echo`, `am_liam`, `am_michael`; British English —
 `bf_alice`, `bf_emma`, `bf_isabella`, `bf_lily`, `bm_daniel`, `bm_fable`,
 `bm_george`, `bm_lewis`.
+
+Pocket request:
+
+```json
+{ "engine": "pocket", "voice": "alba", "text": "Hello world. Next sentence." }
+```
+
+`engine` defaults to `kokoro`. Pocket accepts only `speed: 1.0` (or omission);
+other rates return `400`. Unknown engines/voices and blank text return `400`.
+The sample rate always comes from the selected engine.
+
+Pocket generates each sentence separately and emits these events in order:
+
+```json
+{"type":"sentence_start","sentence_id":0,"text":"Hello world."}
+{"sr":24000,"index":0,"sentence_id":0,"pcm_b64":"..."}
+{"type":"sentence_end","sentence_id":0}
+```
+
+There can be many PCM chunks per sentence. Sentence IDs are scoped to one HTTP
+request. The player maps boundaries using cumulative PCM sample durations,
+without repeating sentence text on every audio chunk. The stream ends with
+`{"done":true}`; errors terminate it with `{"error":"..."}`. Separate sentence
+generation can introduce pauses and has different prosody from full passages.
+
+## Upgrading
+
+Quit the existing tray server before running the new installer, then launch
+PageVoice Server. A process already running on port 18001 continues to serve
+its old code until restarted.
+
+The Windows installer keeps the original AppId and `{localappdata}\KokoroTTSServer`
+directory, but uses PageVoice labels and shortcuts. `dependency-version.txt`
+causes the tray launcher to re-sync dependencies after upgrades; successful
+setup records `.environment-ready`. Log paths and the Firefox extension ID
+remain unchanged. Release assets retain their legacy `kokoro-*` filenames.
+GPU/CPU preferences are retained during dependency upgrades. Run
+`setup.bat --choose-device` to explicitly choose a different build on Windows.
 
 ## Configuration
 
@@ -207,4 +294,5 @@ tokens = phonemize(
 
 ## License
 
-[Apache-2.0](../LICENSE). The Kokoro model itself is also Apache-2.0.
+[Apache-2.0](../LICENSE). Kokoro is Apache-2.0, Pocket TTS is MIT. Preset voices
+have separate terms in the [official catalog](https://huggingface.co/kyutai/tts-voices).

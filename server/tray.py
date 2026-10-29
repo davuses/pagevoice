@@ -1,4 +1,4 @@
-"""System-tray launcher for the Kokoro TTS server (Windows background mode).
+"""System-tray launcher for the PageVoice Server (Windows background mode).
 
 Runs the FastAPI server in a background thread and shows a tray icon, so the
 server can run with no visible console window. Launched hidden via
@@ -139,7 +139,7 @@ def main():
 
     menu = pystray.Menu(
         pystray.MenuItem(
-            lambda item: f"Kokoro TTS server — {status_label()}", None, enabled=False
+            lambda item: f"PageVoice Server — {status_label()}", None, enabled=False
         ),
         pystray.MenuItem(f"http://{HOST}:{PORT}", None, enabled=False),
         pystray.MenuItem("Open test page", on_open),
@@ -148,7 +148,7 @@ def main():
     )
 
     icon = pystray.Icon(
-        "kokoro-tts", make_icon_image(STATUS["starting"][0]), "Kokoro TTS server", menu
+        "kokoro-tts", make_icon_image(STATUS["starting"][0]), "PageVoice Server", menu
     )
 
     def poll():
@@ -167,7 +167,7 @@ def main():
                 state["status"] = status
                 color, label = STATUS[status]
                 icon.icon = make_icon_image(color)
-                icon.title = f"Kokoro TTS server — {label}"
+                icon.title = f"PageVoice Server — {label}"
                 try:
                     icon.update_menu()
                 except Exception:

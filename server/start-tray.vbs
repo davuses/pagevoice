@@ -18,8 +18,23 @@ pyw = appDir & "\.venv\Scripts\pythonw.exe"
 
 ' First run (or the installer couldn't build the env in its restricted context):
 ' run setup visibly and wait, so the user sees the one-time download.
-If Not fso.FileExists(pyw) Then
-  sh.Run "cmd /c """ & appDir & "\setup.bat""", 1, True
+needsSetup = Not fso.FileExists(pyw)
+versionPath = appDir & "\dependency-version.txt"
+readyPath = appDir & "\.environment-ready"
+If fso.FileExists(versionPath) Then
+  If Not fso.FileExists(readyPath) Then
+    needsSetup = True
+  Else
+    Set expected = fso.OpenTextFile(versionPath, 1)
+    Set installed = fso.OpenTextFile(readyPath, 1)
+    needsSetup = needsSetup Or (Trim(expected.ReadAll) <> Trim(installed.ReadAll))
+    expected.Close
+    installed.Close
+  End If
+End If
+If needsSetup Then
+  setupResult = sh.Run("cmd /c """ & appDir & "\setup.bat""", 1, True)
+  If setupResult <> 0 Then WScript.Quit setupResult
 End If
 
 ' Start the tray app hidden if the environment is now ready.

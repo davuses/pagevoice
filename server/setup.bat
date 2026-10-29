@@ -1,17 +1,17 @@
 @echo off
-REM One-time setup for the Kokoro TTS server, run on first launch (and safe to
+REM One-time setup for the PageVoice Server, run on first launch (and safe to
 REM re-run). Installs the uv toolchain if needed, picks the CPU or GPU build of
 REM PyTorch, and syncs all dependencies (including the tray app).
 
 cd /d "%~dp0"
-title Kokoro TTS Server - Setup
+title PageVoice Server - Setup
 
 REM Keep uv's managed Python on a local, non-redirected path. Some Windows
 REM profiles redirect/sync %APPDATA% (Roaming) to OneDrive or a network share,
 REM which uv can't traverse ("untrusted mount point", os error 448).
 set "UV_PYTHON_INSTALL_DIR=%LOCALAPPDATA%\uv\python"
 
-echo Setting up the Kokoro TTS server.
+echo Setting up the PageVoice Server.
 echo.
 
 where uv >nul 2>nul
@@ -33,6 +33,13 @@ REM ships with the driver and succeeds only when a usable GPU is installed, so
 REM machines without one don't download ~2.5 GB of CUDA torch for nothing (it
 REM would just fall back to CPU anyway).
 set "USEGPU=n"
+if /i "%~1"=="--choose-device" goto chooseDevice
+if exist "gpu.flag" (
+  set "USEGPU=y"
+  goto syncDependencies
+)
+if exist ".venv\Scripts\python.exe" goto syncDependencies
+:chooseDevice
 nvidia-smi >nul 2>nul
 if %errorlevel% equ 0 (
   echo An NVIDIA GPU was detected.
@@ -42,6 +49,7 @@ if %errorlevel% equ 0 (
 ) else (
   echo No NVIDIA GPU detected -- installing the CPU build.
 )
+:syncDependencies
 echo.
 
 if /i "%USEGPU%"=="y" (
@@ -62,5 +70,6 @@ if %errorlevel% neq 0 (
 )
 
 echo.
+if exist "dependency-version.txt" copy /y "dependency-version.txt" ".environment-ready" >nul
 echo Setup complete.
 exit /b 0
