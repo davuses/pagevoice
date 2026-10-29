@@ -1,6 +1,6 @@
 {
   "name": "pagevoice-extension",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Cross-browser read-aloud extension with multiple speech engines",
   "private": true,
   "license": "Apache-2.0",

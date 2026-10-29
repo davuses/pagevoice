@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PageVoice — Read Aloud",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Read web pages aloud with local Kokoro or Pocket TTS, or Google Translate.",
   "background": {
     "service_worker": "background.js",
