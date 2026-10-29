@@ -1,0 +1,86 @@
+name: Apple Silicon compatibility
+
+on:
+  push:
+    paths:
+      - "server/**"
+      - ".github/workflows/test-macos.yml"
+  pull_request:
+    paths:
+      - "server/**"
+      - ".github/workflows/test-macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cuda-resolution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        platform: [x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+      - name: Preserve optional CUDA dependency selection
+        working-directory: server
+        env:
+          TARGET_PLATFORM: ${{ matrix.platform }}
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          result = subprocess.run([
+              "uv", "sync", "--locked", "--extra", "cuda", "--python", "3.12",
+              "--python-platform", os.environ["TARGET_PLATFORM"], "--dry-run",
+          ], capture_output=True, text=True, check=True)
+          output = result.stdout + result.stderr
+          print(output)
+          assert "torch==2.7.1+cu126" in output, "CUDA option must retain the CUDA wheel"
+          PY
+
+  apple-silicon:
+    runs-on: macos-14
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: server
+    env:
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      - name: Install locked Apple Silicon dependencies
+        run: |
+          test "$(uname -m)" = arm64
+          uv sync --locked --python 3.12 --group dev
+          uv run --locked python -c "import platform, torch, numpy, kokoro, pocket_tts; assert platform.machine() == 'arm64'; assert torch.version.cuda is None; print(platform.platform(), torch.__version__, numpy.__version__)"
+      - name: Check launcher and server unit tests
+        run: |
+          bash -n start-server.command
+          uv run --locked pytest -q
+      - name: Generate Kokoro and Pocket audio in one process
+        run: uv run --locked python scripts/smoke_tts_environment.py --output-dir "${{ runner.temp }}/pagevoice-audio/models"
+      - name: Verify server endpoints, streaming and cancellation
+        run: uv run --locked python scripts/check_server_runtime.py --output-dir "${{ runner.temp }}/pagevoice-audio/http"
+      - name: Upload WAV samples and server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-silicon-audio-${{ github.run_id }}
+          path: ${{ runner.temp }}/pagevoice-audio
+          if-no-files-found: warn
+          retention-days: 14

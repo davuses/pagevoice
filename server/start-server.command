@@ -15,6 +15,13 @@ pause_on_exit() {
   read -r -p "Press Enter to close this window..."
 }
 
+if [[ "$(uname -m)" != "arm64" ]]; then
+  echo "PageVoice currently supports Apple Silicon Macs. Intel Macs are not supported."
+  echo "If Terminal is running under Rosetta, open a native Terminal and try again."
+  pause_on_exit
+  exit 1
+fi
+
 echo "Starting PageVoice Server setup..."
 echo
 
@@ -35,10 +42,11 @@ if ! command -v uv >/dev/null 2>&1; then
   fi
 fi
 
-echo "Installing dependencies (first run can take several minutes)..."
-if ! uv sync; then
+echo "Installing Apple Silicon dependencies (first run can take several minutes)..."
+if ! uv sync --locked --python 3.12; then
   echo
   echo "Could not install dependencies. Check your internet connection and try again."
+  echo "PageVoice requires uv 0.8 or newer. Update an older installation with: uv self update"
   pause_on_exit
   exit 1
 fi
@@ -52,7 +60,7 @@ echo
 # trampoline (`uv run uvicorn`), which can fail to canonicalize its path when the
 # project lives under a folder with non-ASCII characters (e.g. a Chinese
 # username on Windows).
-uv run python -m uvicorn server:app --host 127.0.0.1 --port 18001
+uv run --locked python -m uvicorn server:app --host 127.0.0.1 --port 18001
 
 echo
 echo "The server has stopped."

@@ -53,6 +53,13 @@ auto-scroll, sentence skipping, and WAV downloads. Pocket currently offers
 Alba, Anna, Azelma, Bill Boerst, Charles, Cosette, Eponine, Eve, George, Jane,
 Mary, and Michael; synthesis-speed adjustment is Kokoro-only.
 
+**macOS:** source support targets Apple Silicon on macOS 14+ using Python 3.12
+and CPU inference. The Apple Silicon CI workflow checks installation and real
+speech generation, and publishes WAV artifacts. Finder launch and browser
+playback still need a real Mac tester; no signed `.app`/`.dmg` is provided yet.
+Intel Macs are not supported. See [macOS setup and validation](server/README.md#macos-scope).
+NVIDIA acceleration remains available on Windows/Linux.
+
 **2. Build and load the extension** (see [`extension/README.md`](extension/README.md)):
 
 Don't want to build? Download a prebuilt zip from the
