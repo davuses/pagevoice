@@ -36,7 +36,7 @@ inside the `server/` folder:
 | System | File |
 | --- | --- |
 | Windows | `start-server.bat` |
-| macOS | `start-server.command` |
+| macOS (Apple Silicon) | `start-server.command` |
 | Linux | `start-server.sh` |
 
 The first run installs the `uv` toolchain for you and downloads the speech model
@@ -44,14 +44,42 @@ The first run installs the `uv` toolchain for you and downloads the speech model
 Keep the window open while you use the extension, and close it to stop the
 server. The steps below are the manual equivalent for developers.
 
-> macOS: the first time, right-click `start-server.command` → **Open** to get
-> past Gatekeeper. Linux: if double-clicking doesn't offer "Run in Terminal",
+> macOS: this is a source launcher that opens Terminal, not a signed Mac app.
+> Finder/Gatekeeper behavior still needs a real Mac tester. Linux: if double-clicking doesn't offer "Run in Terminal",
 > run `./start-server.sh` from a terminal.
 
 ## Requirements
 
 - Python >= 3.12
-- [uv](https://docs.astral.sh/uv/)
+- [uv](https://docs.astral.sh/uv/) >= 0.8 (CI uses 0.13.6). Upgrade an existing
+  installation with `uv self update`.
+
+### macOS scope
+
+The initial target is **Apple Silicon, macOS 14 or newer, Python 3.12**. Both
+engines use CPU inference; Apple Metal/MPS acceleration is not enabled. Intel
+Macs and Rosetta environments are outside the supported dependency resolution.
+The standard macOS PyTorch wheel is selected independently of the optional
+Windows/Linux CUDA wheel.
+
+From a downloaded source archive or checkout, open Terminal in `server/`:
+
+```bash
+uv sync --locked --python 3.12
+uv run --locked python -m uvicorn server:app --host 127.0.0.1 --port 18001
+```
+
+Load the Chrome/Firefox extension as described in its README and use the default
+local server address. Keep Terminal open while reading. There is no `.app`,
+`.dmg`, Safari extension, or Apple signing/notarization in this source-support stage.
+
+The **Apple Silicon compatibility** GitHub Actions workflow checks locked
+installation, imports, launcher syntax, unit tests, real Kokoro/Pocket WAV
+generation, HTTP endpoints, streaming, and cancellation on a macOS ARM runner.
+Its `apple-silicon-audio-*` artifact contains WAVs and the HTTP server log for
+listening and diagnosis from any computer. This does not validate Finder launch,
+Gatekeeper prompts, browser playback, sleep/wake, or perceived speech quality;
+those require a real Mac tester before claiming full end-user support.
 
 Model weights and voice presets download automatically on first use. Internet
 access is needed for the first read with each engine/voice; subsequent reads
@@ -85,11 +113,13 @@ uv sync --extra cuda
 uv run --extra cuda python -m uvicorn server:app --host 0.0.0.0 --port 18001
 ```
 
-The double-click launcher and the Windows installer ask **CPU or GPU** on first
+The Windows double-click launcher and installer ask **CPU or GPU** on first
 run and remember the choice (a `gpu.flag` file). On Linux the default torch is
 already CUDA-enabled, so the GPU is used without the extra. The server picks the
 GPU automatically whenever a CUDA-capable torch is installed
 ([kokoro_model.py](kokoro_model.py): `"cuda" if torch.cuda.is_available()`).
+The `cuda` extra applies only to Windows/Linux; macOS always uses standard
+PyTorch, including if the extra is accidentally enabled.
 
 ## Running
 

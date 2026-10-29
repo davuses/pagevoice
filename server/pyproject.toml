@@ -25,13 +25,30 @@ dependencies = [
 # ~2.5 GB. Without it, torch is the smaller CPU build (the default on Windows;
 # on Linux the default torch is already CUDA-enabled). The server uses the GPU
 # automatically when a CUDA-capable torch is installed.
-cuda = ["torch"]
+cuda = ["torch>=2.7,<2.8; sys_platform == 'linux' or sys_platform == 'win32'"]
+
+[tool.uv]
+# Older uv versions can collapse the CPU/CUDA sources into one incompatible
+# lock entry. Resolve extras and platform-specific indexes with a modern uv.
+required-version = ">=0.8.0"
+environments = ["sys_platform != 'darwin' or platform_machine == 'arm64'"]
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.12'",
+]
 
 [tool.uv.sources]
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 # When the `cuda` extra is enabled, pull torch from PyTorch's CUDA index rather
 # than the default (which is CPU-only on Windows).
-torch = [{ index = "pytorch-cuda", extra = "cuda" }]
+torch = [
+    { index = "pypi", marker = "sys_platform == 'darwin'" },
+    { index = "pytorch-cuda", extra = "cuda", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"

@@ -47,6 +47,11 @@ uv run uvicorn server:app --host 127.0.0.1 --port 18001
 Kokoro 优先使用 GPU；Pocket 使用 CPU。两者都支持流式播放、句子高亮、自动滚动、
 跳句和 WAV 下载。Pocket 提供 12 种预设语音，暂不支持语速调整。
 
+macOS 源码支持以 Apple Silicon、macOS 14+、Python 3.12 和 CPU 推理为目标。
+Apple Silicon CI 会检查依赖安装、服务器及真实语音生成，并提供 WAV 测试产物。
+Finder 启动、浏览器播放及休眠恢复仍需真实 Mac 验证；目前没有签名的 `.app`/`.dmg`，
+暂不支持 Intel Mac。Windows/Linux 的 NVIDIA 加速保持可用。
+
 **2. 构建并加载扩展**（详见 [`extension/README.md`](extension/README.md)）：
 
 ```bash
