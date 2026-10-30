@@ -37,11 +37,15 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force server/installer/Output | Out-Null
-          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
-            /nologo /target:winexe /optimize+ /reference:System.Windows.Forms.dll `
-            /win32icon:server/installer/pagevoice.ico `
-            /out:server/installer/Output/PageVoice.exe server/installer/Launcher.cs
-          if ($LASTEXITCODE -ne 0) { throw "PageVoice launcher compilation failed" }
+          Push-Location server/installer
+          try {
+            & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
+              /nologo /target:winexe /optimize+ /reference:System.Windows.Forms.dll `
+              /win32icon:pagevoice.ico /out:Output\PageVoice.exe Launcher.cs
+            if ($LASTEXITCODE -ne 0) { throw "PageVoice launcher compilation failed" }
+          } finally {
+            Pop-Location
+          }
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             "/DAppVersion=${{ steps.ver.outputs.version }}" `
             "server\installer\kokoro-server.iss"
