@@ -1,7 +1,7 @@
 name: Release Windows installer
 
-# Compile the Inno Setup installer for the Kokoro TTS server on a Windows runner
-# and attach kokoro-tts-server-setup.exe to the GitHub Release for each pushed
+# Compile the Inno Setup installer for PageVoice Server on a Windows runner
+# and attach pagevoice-server-setup.exe to the GitHub Release for each pushed
 # v* tag. Can also be run manually (workflow_dispatch) to produce a test build.
 
 on:
@@ -16,6 +16,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -35,9 +36,27 @@ jobs:
       - name: Compile installer
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force server/installer/Output | Out-Null
+          & "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe" `
+            /nologo /target:winexe /optimize+ /reference:System.Windows.Forms.dll `
+            /win32icon:server/installer/pagevoice.ico `
+            /out:server/installer/Output/PageVoice.exe server/installer/Launcher.cs
+          if ($LASTEXITCODE -ne 0) { throw "PageVoice launcher compilation failed" }
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             "/DAppVersion=${{ steps.ver.outputs.version }}" `
             "server\installer\kokoro-server.iss"
+
+      - name: Test fresh install and in-place shortcut repair
+        shell: pwsh
+        run: ./server/installer/test-install.ps1 -Installer server/installer/Output/pagevoice-server-setup.exe
+
+      - name: Upload installer test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-test-logs
+          path: ${{ runner.temp }}/pagevoice-*.log
+          if-no-files-found: ignore
 
       - name: Upload installer artifact (manual runs)
         if: github.event_name == 'workflow_dispatch'
@@ -69,6 +88,6 @@ jobs:
             throw "Release $tag was not created by the extension workflow"
           }
           gh release upload $tag `
-            "server/installer/Output/kokoro-tts-server-setup.exe" `
+            "server/installer/Output/pagevoice-server-setup.exe" `
             --repo "${{ github.repository }}" `
             --clobber

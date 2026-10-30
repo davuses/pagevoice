@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     ready_event.clear()
 
 
-app = FastAPI(title="PageVoice Server", version="3.0.1", lifespan=lifespan)
+app = FastAPI(title="PageVoice Server", version="3.0.2", lifespan=lifespan)
 
 # Comma-separated list of allowed origins, e.g.
 # ALLOWED_ORIGINS="https://example.com,https://app.example.com".

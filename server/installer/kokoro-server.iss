@@ -1,4 +1,4 @@
-; Inno Setup script for the Kokoro TTS server (Windows).
+; Inno Setup script for PageVoice Server (Windows).
 ;
 ; Compiled in CI (.github/workflows/release-installer.yml) on a Windows runner;
 ; pass the version with /DAppVersion=x.y.z. Produces a small per-user installer
@@ -19,8 +19,12 @@ AppPublisher=davuses
 DefaultDirName={localappdata}\KokoroTTSServer
 DefaultGroupName=PageVoice Server
 DisableProgramGroupPage=yes
+UsePreviousGroup=no
+AllowNoIcons=no
 PrivilegesRequired=lowest
-OutputBaseFilename=kokoro-tts-server-setup
+OutputBaseFilename=pagevoice-server-setup
+SetupIconFile=pagevoice.ico
+UninstallDisplayIcon={app}\pagevoice.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -48,12 +52,16 @@ Source: "..\setup.bat";        DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start-tray.vbs";   DestDir: "{app}"; Flags: ignoreversion
 Source: "..\start-server.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md";        DestDir: "{app}"; Flags: ignoreversion
+Source: "pagevoice.ico";        DestDir: "{app}"; Flags: ignoreversion
+Source: "Output\PageVoice.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\PageVoice Server"; Filename: "wscript.exe"; Parameters: """{app}\start-tray.vbs"""; WorkingDir: "{app}"; Comment: "Start PageVoice Server in the background (tray icon)"
-Name: "{group}\Uninstall PageVoice Server"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\PageVoice Server"; Filename: "wscript.exe"; Parameters: """{app}\start-tray.vbs"""; WorkingDir: "{app}"; Tasks: desktopicon
-Name: "{userstartup}\PageVoice Server"; Filename: "wscript.exe"; Parameters: """{app}\start-tray.vbs"""; WorkingDir: "{app}"; Tasks: autostart
+; Keep the launch entry directly in the current user's Programs folder. It
+; does not depend on a remembered group name or the /NOICONS group preference.
+Name: "{userprograms}\PageVoice Server"; Filename: "{app}\PageVoice.exe"; WorkingDir: "{app}"; IconFilename: "{app}\pagevoice.ico"; AppUserModelID: "davuses.PageVoice.Server"; Comment: "Start PageVoice Server in the background (tray icon)"
+Name: "{userprograms}\PageVoice Server\Uninstall PageVoice Server"; Filename: "{uninstallexe}"
+Name: "{userdesktop}\PageVoice Server"; Filename: "{app}\PageVoice.exe"; WorkingDir: "{app}"; IconFilename: "{app}\pagevoice.ico"; AppUserModelID: "davuses.PageVoice.Server"; Tasks: desktopicon
+Name: "{userstartup}\PageVoice Server"; Filename: "{app}\PageVoice.exe"; WorkingDir: "{app}"; IconFilename: "{app}\pagevoice.ico"; AppUserModelID: "davuses.PageVoice.Server"; Tasks: autostart
 
 [InstallDelete]
 ; Remove only the superseded shortcuts; preserve the install directory/AppId.
@@ -61,6 +69,7 @@ Type: files; Name: "{userprograms}\Kokoro TTS Server\Kokoro TTS Server.lnk"
 Type: files; Name: "{userprograms}\Kokoro TTS Server\Uninstall Kokoro TTS Server.lnk"
 Type: files; Name: "{userdesktop}\Kokoro TTS Server.lnk"
 Type: files; Name: "{userstartup}\Kokoro TTS Server.lnk"
+Type: files; Name: "{userprograms}\PageVoice Server\PageVoice Server.lnk"
 
 [Run]
 ; Do NOT run setup during install: the installer's process tree enforces a
@@ -68,7 +77,7 @@ Type: files; Name: "{userstartup}\Kokoro TTS Server.lnk"
 ; point", os error 448). Instead, launch the app through Explorer so it runs in
 ; the user's shell context; start-tray.vbs builds the environment on first run
 ; (a few-minute, one-time download) and then starts the tray.
-Filename: "{win}\explorer.exe"; Parameters: """{app}\start-tray.vbs"""; Description: "Set up and start PageVoice Server now (first run downloads dependencies)"; Flags: postinstall skipifsilent
+Filename: "{win}\explorer.exe"; Parameters: """{app}\PageVoice.exe"""; Description: "Set up and start PageVoice Server now (first run downloads dependencies)"; Flags: postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\.venv"

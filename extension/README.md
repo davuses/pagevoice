@@ -48,18 +48,18 @@ This extension is not on any store yet, so it installs as an unpacked build.
 
 **No build needed:** grab a prebuilt zip from the
 [Releases](https://github.com/davuses/pagevoice/releases) page
-(`kokoro-extension-chrome.zip` / `kokoro-extension-firefox.zip`), unzip it, and
+(`pagevoice-extension-chrome.zip` / `pagevoice-extension-firefox.zip`), unzip it, and
 load the unzipped folder using the steps below. The zips are produced
 automatically for each tagged release — you only need the build commands if you
 are developing or want an unreleased version.
 
 **Chrome / Chromium / Edge**
-1. `npm run build:chrome` (or unzip a release `kokoro-extension-chrome.zip`).
+1. `npm run build:chrome` (or unzip a release `pagevoice-extension-chrome.zip`).
 2. Open `chrome://extensions`, enable **Developer mode**.
 3. **Load unpacked** → select the `dist-chrome/` folder (or the unzipped folder).
 
 **Firefox**
-1. `npm run build:firefox` (or unzip a release `kokoro-extension-firefox.zip`).
+1. `npm run build:firefox` (or unzip a release `pagevoice-extension-firefox.zip`).
 2. Open `about:debugging#/runtime/this-firefox`.
 3. **Load Temporary Add-on** → select any file inside the folder
    (e.g. `manifest.json`). Or run `npm run start:firefox` (requires `web-ext`).

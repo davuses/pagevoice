@@ -24,10 +24,10 @@ engine does not.
 > **Easiest install — Windows, no command line.** From the latest
 > [release](https://github.com/davuses/pagevoice/releases):
 >
-> 1. Run **`kokoro-tts-server-setup.exe`**. It sets everything up (first run
+> 1. Run **`pagevoice-server-setup.exe`**. It sets everything up (first run
 >    downloads a few hundred MB, several minutes) and then runs the server from a
 >    **system-tray icon** — can also start automatically when you sign in.
-> 2. Unzip **`kokoro-extension-chrome.zip`**, open `chrome://extensions`, enable
+> 2. Unzip **`pagevoice-extension-chrome.zip`**, open `chrome://extensions`, enable
 >    *Developer mode*, and **Load unpacked** the unzipped folder.
 > 3. Click the extension, choose Kokoro or Pocket TTS, select a voice, and read.
 >
@@ -92,7 +92,7 @@ have their own upstream licenses; see the [voice catalog](https://huggingface.co
 ## Upgrading from kokoro-read-aloud
 
 PageVoice is the new project name, hosted at [davuses/pagevoice](https://github.com/davuses/pagevoice).
-Release asset names remain unchanged for compatibility. v3.0 requires updating both the server and
+Release downloads use `pagevoice-*` names from v3.0.2 onward. v3.0 requires updating both the server and
 extension to use Pocket. Quit the old tray server before installing and restart
 it afterward. Existing Kokoro voices, server URL, speed, look-ahead,
 and auto-scroll settings are retained. Windows keeps the same installer AppId,

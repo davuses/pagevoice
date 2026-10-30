@@ -14,7 +14,7 @@ its own.
 ## Windows installer (recommended for non-technical users)
 
 Windows users can install the server like a normal app: download
-`kokoro-tts-server-setup.exe` from the
+`pagevoice-server-setup.exe` from the
 [Releases](https://github.com/davuses/pagevoice/releases) page and run
 it. The installer copies the server, sets up the `uv` toolchain and
 dependencies (a few minutes, one time), adds Start Menu / optional desktop
@@ -27,6 +27,19 @@ downloaded by the setup step / on first use, not bundled. The tray app lives in
 [`tray.py`](tray.py); the installer is built from
 [`installer/kokoro-server.iss`](installer/kokoro-server.iss) by the
 `release-installer` CI workflow.
+
+To find it after installation, open **Start → All apps → PageVoice Server**, or
+search for **PageVoice Server**. Right-click the entry to pin it to Start; pinning
+is a Windows user choice, not performed automatically. Select the desktop
+shortcut task during installation if you also want a desktop icon.
+
+To update, quit the tray server and run the new installer over the existing
+installation; uninstalling first is unnecessary. Reinstalling repairs a missing
+Start shortcut while preserving the environment and GPU preference. For older
+installations that are hard to find, press Win+R and run
+`%LOCALAPPDATA%\KokoroTTSServer\start-tray.vbs`. From v3.0.2, the installed
+`PageVoice.exe` provides the branded launcher; the old install folder name and
+installer identity are retained so upgrades continue to work.
 
 ## Easy start (no command line)
 

@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-server"
-version = "3.0.1"
+version = "3.0.2"
 description = "PageVoice local speech server for Kokoro and Pocket TTS."
 readme = "README.md"
 license = "Apache-2.0"

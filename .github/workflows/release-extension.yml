@@ -38,8 +38,8 @@ jobs:
       - name: Package zips
         working-directory: extension
         run: |
-          (cd dist-chrome && zip -r ../kokoro-extension-chrome.zip .)
-          (cd dist-firefox && zip -r ../kokoro-extension-firefox.zip .)
+          (cd dist-chrome && zip -r ../pagevoice-extension-chrome.zip .)
+          (cd dist-firefox && zip -r ../pagevoice-extension-firefox.zip .)
 
       - name: Upload build artifacts (manual runs)
         if: github.event_name == 'workflow_dispatch'
@@ -47,15 +47,15 @@ jobs:
         with:
           name: extension-zips
           path: |
-            extension/kokoro-extension-chrome.zip
-            extension/kokoro-extension-firefox.zip
+            extension/pagevoice-extension-chrome.zip
+            extension/pagevoice-extension-firefox.zip
 
       - name: Attach to GitHub Release (tag pushes)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            extension/kokoro-extension-chrome.zip
-            extension/kokoro-extension-firefox.zip
+            extension/pagevoice-extension-chrome.zip
+            extension/pagevoice-extension-firefox.zip
           fail_on_unmatched_files: true
           generate_release_notes: true
